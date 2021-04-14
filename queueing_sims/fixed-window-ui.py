@@ -1,6 +1,33 @@
 #!/usr/bin/env python3
 
+###############################################################################
+# A simulation of a fixed window rate limiter.
+# For a window of time (e.g. 60 seconds) cap requests at a maximum threshold.
+# All requests that exceed the threshold go in a queue.
+#
+# This is an extension of the fixed-window.py simulation. It adds:
+# - The ability to track the queue depth.
+# - A simple CLI UI for observing the simulation behavior.
+#
+# Considerations
+# - A warm up period?..
+# - Migrate to OO implementation.
+#
+# UI
+# - Simulation Progress Bar based on Sim Duration
+# - Inbound Request Rate
+# - Total Requests Submitted
+# - Max Threshold
+# - Queue Depth
+# - Total Requests Processed
+###############################################################################
+
 import simpy
+from rich.console import Console
+from rich.layout import Layout
+from rich.live import Live
+from rich.panel import Panel
+
 import math
 from statistics import mean
 import random
@@ -65,20 +92,24 @@ def find_window(now: int, window_size: int ) -> tuple[int, int]:
   window_end = window_start + window_size 
   return window_start, window_end
 
-env = simpy.Environment()
-store = simpy.Store(env)
-env.process(generate_requests(env, AVG_REQUEST_ARRIVAL_SPEED, store))
-env.process(fixed_widow_processor(env, WINDOW_SIZE, MAX_THRESHOLD, store))
-env.run(until = DURATION)
+def main():
+  env = simpy.Environment()
+  store = simpy.Store(env)
+  env.process(generate_requests(env, AVG_REQUEST_ARRIVAL_SPEED, store))
+  env.process(fixed_widow_processor(env, WINDOW_SIZE, MAX_THRESHOLD, store))
+  env.run(until = DURATION)
 
-print(f"Requests Submitted: {metrics['requests_submitted']}")
-print(f"Requests Processed: {metrics['requests_processed']}")
+  print(f"Requests Submitted: {metrics['requests_submitted']}")
+  print(f"Requests Processed: {metrics['requests_processed']}")
 
-rate_exceeded_count = len(metrics["threshold_exceeded_wait_times"])
-print(f"Rate Exceeded Count: {rate_exceeded_count}")
-if rate_exceeded_count > 0:
-  avg_wait_time = mean(metrics["threshold_exceeded_wait_times"])
-  print(f"Avg Wait Time: {avg_wait_time}")
+  rate_exceeded_count = len(metrics["threshold_exceeded_wait_times"])
+  print(f"Rate Exceeded Count: {rate_exceeded_count}")
+  if rate_exceeded_count > 0:
+    avg_wait_time = mean(metrics["threshold_exceeded_wait_times"])
+    print(f"Avg Wait Time: {avg_wait_time}")
 
-for i in metrics["threshold_exceeded_wait_times"]:
-  print(i)
+  for i in metrics["threshold_exceeded_wait_times"]:
+    print(i)
+
+if __name__ == "__main__":
+  main()
