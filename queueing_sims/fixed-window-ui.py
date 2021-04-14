@@ -20,6 +20,7 @@
 
 from rich import print
 from rich import box
+from rich.columns import Columns
 from rich.console import Console
 from rich.layout import Layout
 from rich.live import Live
@@ -37,7 +38,7 @@ console = Console()
 
 # The UOM for time in the simulation is 1 tick = 1 second.
 MINUTE = 60 # 1 minute is 60 seconds
-DURATION = 60 * 60 * 10 # Seconds * Minutes * Hours
+DURATION = 60 * 60 * 1 # Seconds * Minutes * Hours
 WINDOW_SIZE = MINUTE * 1
 
 # 500 requests/min => 8.333333333333334 Requests/sec
@@ -104,7 +105,7 @@ def update_ui(env, store, ui_layout, sim_progress, sim_task):
     metrics["current_sim_tick"] = math.floor(env.now)
     sim_progress.update(sim_task, advance = metrics["current_sim_tick"] - previous_tick)
     # ui_layout["upper"].update(Panel.fit(sim_progress, title="Simulation Progress"))
-    ui_layout["upper"].update(sim_progress)
+    ui_layout["middle"].update(sim_progress)
     
     # 2. Determine the number of requests waiting to be processed.
     pending_requests_count = len(store.items)
@@ -135,16 +136,31 @@ def create_ui_layout(sim_progress):
   # Divide the "screen" in to two rows
   layout.split_column(
     Layout(name="upper"),
+    Layout(name="middle"),
     Layout(name="lower")
   )
-  layout["upper"].size = 1
-  # layout["lower"].size = 6
+  layout["upper"].size = 8
+  layout["middle"].size = 1
+  # layout["lower"].size = 5
   return layout
+
+def render_simulation_configuration(ui_layout):
+  SPACE = "     "
+  table = Table(title="Simulation Configuration", box=box.HORIZONTALS, show_header = False)
+  table.add_column()
+  table.add_column()
+  table.add_column()
+  table.add_row("UOM: Seconds", SPACE, f"Window Size (sec): {WINDOW_SIZE}")
+  table.add_row(f"Simulation Duration (min): {DURATION/60}", SPACE, f"Max Request/Min:   {MAX_THRESHOLD}")
+  table.add_row(SPACE, SPACE, f"Avg Requests/Min:  {math.floor(1/AVG_REQUEST_ARRIVAL_SPEED * 60)}")
+  
+  ui_layout["upper"].update(table)  
 
 def main():
   sim_progress = Progress(expand=False)
   ui_layout = create_ui_layout(sim_progress)
   with Live(ui_layout, refresh_per_second=10, screen=True):
+    render_simulation_configuration(ui_layout)
     sim_task = sim_progress.add_task("[red]Running Simulation...", total = DURATION)
     env = simpy.Environment()
     store = simpy.Store(env)
@@ -154,6 +170,7 @@ def main():
     env.run(until = DURATION)
 
   # After the simulation is done: Display the final UI
+  print("All Done")
   print(ui_layout)
 
 if __name__ == "__main__":
