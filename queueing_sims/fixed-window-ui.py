@@ -40,8 +40,7 @@ console = Console()
 
 # The UOM for time in the simulation is 1 tick = 1 second.
 MINUTE = 60 # 1 minute is 60 seconds
-duration = datetime.timedelta(hours=10)
-DURATION = duration.total_seconds() # Duration in seconds
+DURATION = datetime.timedelta(hours=10) 
 WINDOW_SIZE = MINUTE * 1
 
 # 500 requests/min => 8.333333333333334 Requests/sec
@@ -154,7 +153,7 @@ def render_simulation_configuration(ui_layout):
   table.add_column()
   table.add_column()
   table.add_row("UOM: Seconds", SPACE, f"Window Size (sec): {WINDOW_SIZE}")
-  table.add_row(f"Simulation Duration: {str(duration)}", SPACE, f"Max Request/Min:   {MAX_THRESHOLD}")
+  table.add_row(f"Simulation Duration: {str(DURATION)}", SPACE, f"Max Request/Min:   {MAX_THRESHOLD}")
   table.add_row(SPACE, SPACE, f"Avg Requests/Min:  {math.floor(1/AVG_REQUEST_ARRIVAL_SPEED * 60)}")
   
   ui_layout["upper"].update(table)  
@@ -179,13 +178,13 @@ def main():
   with Live(ui_layout, refresh_per_second=10, screen=True):
     render_sim_diagram(ui_layout)
     render_simulation_configuration(ui_layout)
-    sim_task = sim_progress.add_task("[red]Running Simulation...", total = DURATION)
+    sim_task = sim_progress.add_task("[red]Running Simulation...", total = DURATION.total_seconds())
     env = simpy.Environment()
     store = simpy.Store(env)
     env.process(generate_requests(env, AVG_REQUEST_ARRIVAL_SPEED, store))
     env.process(fixed_widow_processor(env, WINDOW_SIZE, MAX_THRESHOLD, store))
     env.process(update_ui(env, store, ui_layout, sim_progress, sim_task))
-    env.run(until = DURATION)
+    env.run(until = DURATION.total_seconds())
 
   # After the simulation is done: Display the final UI
   print("All Done")
