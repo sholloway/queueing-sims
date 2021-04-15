@@ -22,14 +22,16 @@ from rich import print
 from rich import box
 from rich.columns import Columns
 from rich.console import Console
+from rich.console import RenderGroup
 from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
-from rich.console import RenderGroup
 from rich.progress import Progress
 from rich.table import Table
+from rich.text import Text
 import simpy
 
+import datetime
 import math
 from statistics import mean
 import random
@@ -38,7 +40,8 @@ console = Console()
 
 # The UOM for time in the simulation is 1 tick = 1 second.
 MINUTE = 60 # 1 minute is 60 seconds
-DURATION = 60 * 60 * 1 # Seconds * Minutes * Hours
+duration = datetime.timedelta(hours=10)
+DURATION = duration.total_seconds() # Duration in seconds
 WINDOW_SIZE = MINUTE * 1
 
 # 500 requests/min => 8.333333333333334 Requests/sec
@@ -104,7 +107,6 @@ def update_ui(env, store, ui_layout, sim_progress, sim_task):
     previous_tick = metrics["current_sim_tick"]
     metrics["current_sim_tick"] = math.floor(env.now)
     sim_progress.update(sim_task, advance = metrics["current_sim_tick"] - previous_tick)
-    # ui_layout["upper"].update(Panel.fit(sim_progress, title="Simulation Progress"))
     ui_layout["middle"].update(sim_progress)
     
     # 2. Determine the number of requests waiting to be processed.
@@ -117,17 +119,16 @@ def update_ui(env, store, ui_layout, sim_progress, sim_task):
     if rate_exceeded_count > 0:
       avg_wait_time = mean(metrics["threshold_exceeded_wait_times"])
 
-
     # 5. Build a table to represent the metrics.
     sim_table = Table("Requests Submitted", "Requests Processed", "Rate Exceeded Count", "Avg Wait Time (s)", 
-                      title="Simulation Metrics", box=box.SIMPLE_HEAVY)
+                      title="[bold]Simulation Metrics[/bold]", title_justify="left", box=box.SIMPLE_HEAVY)
     sim_table.add_row(str(metrics['requests_submitted']), 
       str(metrics['requests_processed']), 
       str(rate_exceeded_count), 
       str(avg_wait_time))
 
     # 6. Update the lower panel.
-    ui_layout["lower"].update(RenderGroup(pending_requests_msg,sim_table))
+    ui_layout["lower"].update(RenderGroup("",pending_requests_msg,"", sim_table))
 
     yield env.timeout(UI_REFRESH_RATE)
 
@@ -135,31 +136,48 @@ def create_ui_layout(sim_progress):
   layout = Layout()
   # Divide the "screen" in to two rows
   layout.split_column(
-    Layout(name="upper"),
-    Layout(name="middle"),
-    Layout(name="lower")
+    Layout(Text(" "), name="diagram", size = 10),
+    Layout(Text(" "), name="upper", size = 8),
+    Layout(Text(" "), name="middle", size = 1),
+    Layout(Text(" "), name="lower")
   )
-  layout["upper"].size = 8
-  layout["middle"].size = 1
-  # layout["lower"].size = 5
   return layout
 
 def render_simulation_configuration(ui_layout):
   SPACE = "     "
-  table = Table(title="Simulation Configuration", box=box.HORIZONTALS, show_header = False)
+  table = Table(title="[bold]Simulation Configuration[/bold]", 
+                box=box.HORIZONTALS,
+                show_edge=False,
+                show_lines = False, 
+                show_header = False)
   table.add_column()
   table.add_column()
   table.add_column()
   table.add_row("UOM: Seconds", SPACE, f"Window Size (sec): {WINDOW_SIZE}")
-  table.add_row(f"Simulation Duration (min): {DURATION/60}", SPACE, f"Max Request/Min:   {MAX_THRESHOLD}")
+  table.add_row(f"Simulation Duration: {str(duration)}", SPACE, f"Max Request/Min:   {MAX_THRESHOLD}")
   table.add_row(SPACE, SPACE, f"Avg Requests/Min:  {math.floor(1/AVG_REQUEST_ARRIVAL_SPEED * 60)}")
   
   ui_layout["upper"].update(table)  
 
+def render_sim_diagram(ui_layout):
+  # Created with https://asciiflow.com/#/
+  diagram = r"""
+      [bold]Fixed Window Rate Limiter Simulation[/bold]
+            ┌─────────────────────┐
+Inbound     │                     │ Processed
+Requests    │   Fixed             │ Requests
+───────────►│   Window            ├────────────►
+            │   Rate Limiter      │
+            │                     │
+            └─────────────────────┘
+  """
+  ui_layout["diagram"].update(diagram)
+  
 def main():
   sim_progress = Progress(expand=False)
   ui_layout = create_ui_layout(sim_progress)
   with Live(ui_layout, refresh_per_second=10, screen=True):
+    render_sim_diagram(ui_layout)
     render_simulation_configuration(ui_layout)
     sim_task = sim_progress.add_task("[red]Running Simulation...", total = DURATION)
     env = simpy.Environment()
