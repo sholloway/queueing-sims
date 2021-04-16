@@ -62,7 +62,9 @@ def generate_requests(env, avg_arrival_speed, store):
     # print("Generator: Request Submitted")
     store.put(1) #Generate a request.
     metrics['requests_submitted'] += 1
-    wait_for_next_request_time = random.expovariate(avg_arrival_speed)
+    # TODO: Need to find a strategy for doing an exponential distribution
+    # when the rate is this fast.
+    # wait_for_next_request_time = random.expovariate(avg_arrival_speed)
     yield env.timeout(avg_arrival_speed)
 
 def fixed_widow_processor(env, window_size, max_threshold, store):
@@ -133,7 +135,6 @@ def update_ui(env, store, ui_layout, sim_progress, sim_task):
 
 def create_ui_layout(sim_progress):
   layout = Layout()
-  # Divide the "screen" in to two rows
   layout.split_column(
     Layout(Text(" "), name="diagram", size = 10),
     Layout(Text(" "), name="upper", size = 8),
