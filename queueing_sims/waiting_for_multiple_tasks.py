@@ -20,7 +20,7 @@ def concurrent_work(env):
   while True:
     tasks = []
     concurrent_count = math.ceil(random.expovariate(TASK_RATE))
-    for index in range(concurrent_count):
+    for _ in range(concurrent_count):
       count += 1 
       tasks.append(env.process(task(env, count)))
     yield env.all_of(tasks)
